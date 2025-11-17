@@ -7,7 +7,7 @@
 .env.*.local
 
 # uploads
-uploads/
+uploads/profile
 
 # Logs
 logs

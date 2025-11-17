@@ -19,17 +19,25 @@ import { UsersModule } from './users/users.module';
 
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        uri: `${configService.get('MONGODB_URI')}/${configService.get('DATABASE_NAME')}`,
-        connectionFactory: (connection) => {
-          connection.on('connected', () => console.log('✅ MongoDB connected successfully!'));
-          connection.on('disconnected', () => console.log('⚠️  MongoDB disconnected  '));
-          connection.on('error', (err: Error) =>
-            console.error('❌ MongoDB connection error:', err),
-          );
-          return connection;
-        },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const atlasUri = configService.get<string>('MONGODB_ATLAS_URI');
+        const localUri = configService.get<string>('MONGODB_URI');
+        const dbName = configService.get<string>('DATABASE_NAME') || 'editor';
+
+        const uri = atlasUri && atlasUri.length > 0 ? atlasUri : `${localUri}/${dbName}`;
+
+        // uri: `${configService.get('MONGODB_URI')}/${configService.get('DATABASE_NAME')}`
+
+        return {
+          uri,
+          connectionFactory: (connection) => {
+            connection.on('connected', () => console.log('✅ MongoDB connected successfully!'));
+            connection.on('disconnected', () => console.log('⚠️  MongoDB disconnected  '));
+            connection.on('error', (err: Error) => console.error('❌ MongoDB connection error:', err));
+            return connection;
+          },
+        }
+      },
       inject: [ConfigService],
     }),
 
@@ -53,4 +61,4 @@ import { UsersModule } from './users/users.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
