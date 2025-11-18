@@ -19,15 +19,20 @@ export class HocuspocusService implements OnModuleInit {
     private jwtService: JwtService,
     private documentsService: DocumentsService,
     private usersService: UsersService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     await this.startServer();
   }
 
   private async startServer() {
+    const selectport = this.configService.get('HOCUSPOCUS_PORT') || this.configService.get('PORT') || process.env.port
+    const port = Number(selectport)
+    if (!port || Number.isNaN(port)) {
+      throw new Error(`❌ Invalid port value: "${selectport}". It must be a number.`);
+    }
     this.server = new Server({
-      port: this.configService.get('HOCUSPOCUS_PORT'),
+      port,
       debounce: 3000,
       maxDebounce: 10000,
       name: 'AI-Editor-Collab',
