@@ -27,7 +27,7 @@ export class HocuspocusService implements OnModuleInit {
 
   private async startServer() {
     this.server = new Server({
-      port: this.configService.get('HOCUSPOCUS_PORT', 1234),
+      port: this.configService.get('HOCUSPOCUS_PORT'),
       debounce: 3000,
       maxDebounce: 10000,
       name: 'AI-Editor-Collab',
@@ -140,7 +140,7 @@ export class HocuspocusService implements OnModuleInit {
 
     await this.server.listen();
     console.log(
-      `🗄️  Hocuspocus server started on ws://localhost:${this.configService.get('HOCUSPOCUS_PORT', 1234)} 🛰️`,
+      `🗄️  Hocuspocus server started on ws://localhost:${this.configService.get('HOCUSPOCUS_PORT')} 🛰️`,
     );
   }
 
