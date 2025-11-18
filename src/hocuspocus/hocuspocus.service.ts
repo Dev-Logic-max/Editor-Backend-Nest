@@ -19,18 +19,14 @@ export class HocuspocusService implements OnModuleInit {
     private jwtService: JwtService,
     private documentsService: DocumentsService,
     private usersService: UsersService,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     await this.startServer();
   }
 
   private async startServer() {
-    const selectport = this.configService.get('HOCUSPOCUS_PORT') || this.configService.get('PORT') || process.env.port
-    const port = Number(selectport)
-    if (!port || Number.isNaN(port)) {
-      throw new Error(`❌ Invalid port value: "${selectport}". It must be a number.`);
-    }
+    const port = Number(this.configService.get('HOCUSPOCUS_PORT')) || 1234
     this.server = new Server({
       port,
       debounce: 3000,
@@ -145,7 +141,7 @@ export class HocuspocusService implements OnModuleInit {
 
     await this.server.listen();
     console.log(
-      `🗄️  Hocuspocus server started on ws://localhost:${this.configService.get('HOCUSPOCUS_PORT')} 🛰️`,
+      `🗄️  Hocuspocus server started on ws://localhost:${port} 🛰️`,
     );
   }
 
