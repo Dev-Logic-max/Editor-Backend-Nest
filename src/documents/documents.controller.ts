@@ -1,28 +1,17 @@
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req, Request, UseGuards } from '@nestjs/common';
+
+import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { DocumentStatus } from 'src/common/enums/docs.enum';
+
 import { UserRole } from 'src/common/enums/roles.enum';
-
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Put,
-  Query,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
-
-import { DocumentsService } from './documents.service';
+import { DocumentStatus } from 'src/common/enums/docs.enum';
+import { DocumentsService } from 'src/documents/documents.service';
 
 @Controller('documents')
 @UseGuards(JwtAuthGuard)
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(private readonly documentsService: DocumentsService) { }
 
   @Post()
   async create(@Request() req, @Body() body: { title: string; content?: any }) {
@@ -101,6 +90,66 @@ export class DocumentsController {
     return {
       success: true,
       message: 'Document deleted successfully',
+    };
+  }
+
+  @Post(':id/media')
+  async addMedia(@Param('id') id: string, @Body() mediaDto: any, @Req() req: any) {
+    const userId = req.user?.id;
+    const document = await this.documentsService.addMediaToDocument(userId, id, mediaDto);
+    return {
+      success: true,
+      data: document,
+      message: 'Media added to document',
+    };
+  }
+
+  @Put(':id/media/:filename/rename')
+  async renameMedia(
+    @Param('id') id: string,
+    @Param('filename') filename: string,
+    @Body() body: { originalName: string },
+    @Req() req: any
+  ) {
+    const userId = req.user?.id;
+    const document = await this.documentsService.renameMedia(userId, id, filename, body.originalName);
+    return {
+      success: true,
+      data: document,
+      message: 'Media renamed successfully',
+    };
+  }
+
+  @Delete(':id/media/:filename')
+  async removeMedia(@Param('id') id: string, @Param('filename') filename: string, @Req() req: any) {
+    const userId = req.user?.id;
+    const document = await this.documentsService.removeMediaFromDocument(userId, id, filename);
+    return {
+      success: true,
+      data: document,
+      message: 'Media removed from document',
+    };
+  }
+
+  @Get(':id/media')
+  async getMedia(@Param('id') id: string, @Req() req: any) {
+    const userId = req.user?.id;
+    const media = await this.documentsService.getDocumentMedia(userId, id);
+    return {
+      success: true,
+      data: media,
+      message: 'Media retrieved successfully',
+    };
+  }
+
+  @Get('user/media')
+  async getUserMedia(@Request() req) {
+    const userId = req.user?.id;
+    const media = await this.documentsService.getAllUserMedia(userId);
+    return {
+      success: true,
+      data: media,
+      message: 'User media retrieved successfully',
     };
   }
 }

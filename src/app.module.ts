@@ -12,6 +12,7 @@ import { HocuspocusModule } from './hocuspocus/hocuspocus.module';
 import { RequestsModule } from './requests/requests.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
+import { AIHistoryModule } from './ai/ai-history.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { UsersModule } from './users/users.module';
     DocumentsModule,
     HocuspocusModule,
     RequestsModule,
+    AIHistoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

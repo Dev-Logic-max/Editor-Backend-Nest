@@ -19,6 +19,10 @@ async function bootstrap() {
     // credentials: true,
   }); // ✨ Enable CORS for frontend 🎨
 
+  // In your app configuration
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
   // ---------- SERVE UPLOADED FILES ---------- //
   const uploadDir = path.resolve(process.cwd(), 'uploads');
   app.use('/uploads', express.static(uploadDir));

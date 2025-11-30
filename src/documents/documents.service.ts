@@ -13,16 +13,24 @@ export class DocumentsService {
   constructor(
     @InjectModel(Doc.name) private documentModel: Model<Doc>,
     private usersService: UsersService,
-  ) {}
+  ) { }
 
-  async create(userId: string, { title, content }: { title: string; content?: any }): Promise<Doc> {
+  async create(userId: string, { title, content }: { title: string; content?: any }): Promise<Doc | null> {
     const user = await this.usersService.findById(userId);
     const document = new this.documentModel({
       title,
       content: content || { type: 'doc', content: [{ type: 'paragraph' }] },
       creator: user._id,
     });
-    return document.save();
+    // return document.save();
+
+    const savedDoc = await document.save();
+
+    return this.documentModel
+      .findById(savedDoc._id)
+      .populate('creator', 'firstName lastName profilePhoto')
+      .populate('collaborators', 'firstName lastName profilePhoto')
+      .exec();
   }
 
   async findAllAdmin(
@@ -91,12 +99,6 @@ export class DocumentsService {
     if (!document.creator.equals(userId) && !document.collaborators.some((c) => c.equals(userId))) {
       throw new ForbiddenException('Access denied');
     }
-    // Validate collaborator IDs
-    // if (update.collaborators) {
-    //     for (const collaboratorId of update.collaborators) {
-    //         await this.usersService.findById(collaboratorId);
-    //     }
-    // }
 
     // Validate collaborator IDs if present
     if ('collaborators' in update && Array.isArray(update.collaborators)) {
@@ -124,5 +126,123 @@ export class DocumentsService {
       throw new ForbiddenException('Only the creator can delete this document');
     }
     await this.documentModel.findByIdAndDelete(id).exec();
+  }
+
+  async addMediaToDocument(
+    userId: string,
+    documentId: string,
+    media: { filename: string; url: string; type: 'image' | 'video' | 'document' },
+  ): Promise<Doc | null> {
+    const document = await this.documentModel.findById(documentId).exec();
+    if (!document) throw new NotFoundException('Document not found');
+
+    // Check permissions
+    if (!document.creator.equals(userId) && !document.collaborators.some((c) => c.equals(userId))) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const mediaItem = {
+      ...media,
+      uploadedAt: new Date(),
+    };
+
+    const updated = await this.documentModel
+      .findByIdAndUpdate(
+        documentId,
+        { $push: { media: mediaItem } },
+        { new: true },
+      )
+      .populate('creator', 'firstName lastName')
+      .populate('collaborators', 'firstName lastName')
+      .exec();
+
+    return updated;
+  }
+
+  async removeMediaFromDocument(
+    userId: string,
+    documentId: string,
+    filename: string,
+  ): Promise<Doc | null> {
+    const document = await this.documentModel.findById(documentId).exec();
+    if (!document) throw new NotFoundException('Document not found');
+
+    // Check permissions
+    if (!document.creator.equals(userId) && !document.collaborators.some((c) => c.equals(userId))) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const updated = await this.documentModel
+      .findByIdAndUpdate(
+        documentId,
+        { $pull: { media: { filename } } },
+        { new: true },
+      )
+      .populate('creator', 'firstName lastName')
+      .populate('collaborators', 'firstName lastName')
+      .exec();
+
+    return updated;
+  }
+
+  async getDocumentMedia(userId: string, documentId: string): Promise<any[]> {
+    const document = await this.documentModel.findById(documentId).exec();
+    if (!document) throw new NotFoundException('Document not found');
+
+    // Check permissions
+    if (!document.creator.equals(userId) && !document.collaborators.some((c) => c.equals(userId))) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    return document.media || [];
+  }
+
+  async renameMedia(
+    userId: string,
+    documentId: string,
+    filename: string,
+    newOriginalName: string,
+  ): Promise<Doc | null> {
+    const document = await this.documentModel.findById(documentId).exec();
+    if (!document) throw new NotFoundException('Document not found');
+
+    if (!document.creator.equals(userId) && !document.collaborators.some((c) => c.equals(userId))) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const updated = await this.documentModel
+      .findOneAndUpdate(
+        { _id: documentId, 'media.filename': filename },
+        { $set: { 'media.$.originalName': newOriginalName } },
+        { new: true }
+      )
+      .populate('creator', 'firstName lastName')
+      .populate('collaborators', 'firstName lastName')
+      .exec();
+
+    return updated;
+  }
+
+  async getAllUserMedia(userId: string): Promise<any[]> {
+    const documents = await this.documentModel
+      .find({ $or: [{ creator: userId }, { collaborators: userId }] })
+      .select('media title')
+      .exec();
+
+    const allMedia: any[] = [];
+
+    documents.forEach(doc => {
+      if (doc.media && doc.media.length > 0) {
+        doc.media.forEach((item: any) => {
+          allMedia.push({
+            ...item,
+            documentId: doc._id,
+            documentTitle: doc.title,
+          });
+        });
+      }
+    });
+
+    return allMedia;
   }
 }

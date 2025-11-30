@@ -8,6 +8,8 @@
 
 # uploads
 uploads/profile
+uploads/images
+uploads/videos
 
 # Logs
 logs
