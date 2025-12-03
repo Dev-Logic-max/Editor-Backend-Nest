@@ -222,7 +222,6 @@ export class UploadsService {
     };
   }
 
-  // Delete video
   async deleteVideo(filename: string): Promise<void> {
     if (!filename) return;
     const videosDir = path.resolve(process.cwd(), 'uploads/videos');

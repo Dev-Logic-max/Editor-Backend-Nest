@@ -11,6 +11,7 @@ export interface MediaItem {
   type: 'image' | 'video' | 'document';
   size: number;
   uploadedAt: Date;
+  uploadedBy: Types.ObjectId;
 }
 
 @Schema({ timestamps: true })
@@ -39,6 +40,7 @@ export class Doc extends Document {
         type: { type: String, enum: ['image', 'video', 'document'] },
         size: Number,
         uploadedAt: { type: Date, default: Date.now },
+        uploadedBy: { type: Types.ObjectId, ref: 'User' },
       },
     ],
     default: [],

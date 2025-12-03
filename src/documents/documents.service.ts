@@ -144,6 +144,7 @@ export class DocumentsService {
     const mediaItem = {
       ...media,
       uploadedAt: new Date(),
+      uploadedBy: userId,
     };
 
     const updated = await this.documentModel
@@ -154,6 +155,7 @@ export class DocumentsService {
       )
       .populate('creator', 'firstName lastName')
       .populate('collaborators', 'firstName lastName')
+      .populate('media.uploadedBy', 'firstName lastName profilePhoto')
       .exec();
 
     return updated;
@@ -186,7 +188,11 @@ export class DocumentsService {
   }
 
   async getDocumentMedia(userId: string, documentId: string): Promise<any[]> {
-    const document = await this.documentModel.findById(documentId).exec();
+    const document = await this.documentModel
+      .findById(documentId)
+      .populate('media.uploadedBy', 'firstName lastName profilePhoto')
+      .exec();
+
     if (!document) throw new NotFoundException('Document not found');
 
     // Check permissions
@@ -227,6 +233,8 @@ export class DocumentsService {
     const documents = await this.documentModel
       .find({ $or: [{ creator: userId }, { collaborators: userId }] })
       .select('media title')
+      .populate('media.uploadedBy', 'firstName lastName profilePhoto')
+      .populate('creator', 'firstName lastName')
       .exec();
 
     const allMedia: any[] = [];
@@ -238,6 +246,7 @@ export class DocumentsService {
             ...item,
             documentId: doc._id,
             documentTitle: doc.title,
+            documentCreator: doc.creator,
           });
         });
       }

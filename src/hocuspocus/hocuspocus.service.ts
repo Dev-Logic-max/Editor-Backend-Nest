@@ -71,6 +71,7 @@ export class HocuspocusService implements OnModuleInit {
     ];
 
     const port = Number(this.configService.get('HOCUSPOCUS_PORT')) || 1234
+
     this.server = new Server({
       port,
       debounce: 3000,
@@ -87,28 +88,46 @@ export class HocuspocusService implements OnModuleInit {
       },
 
       onAuthenticate: async (data) => {
-        const url =
-          (data.requestHeaders['x-forwarded-url'] as string) || (data.request.url as string);
+        const url = (data.requestHeaders['x-forwarded-url'] as string) || (data.request.url as string);
+
+        console.log('🔍 [Auth] Full URL:', url);
+        console.log('🔍 [Auth] Headers:', data.requestHeaders);
+
         if (!url) {
           console.log('🚫 No URL provided for authentication');
           throw new Error('❌ No URL provided ❌');
           // return false;
         }
+
         const tokenMatch = url.match(/token=([^&]+)/);
-        // const tokenMatch = token.match();
-        const tokenTrue = tokenMatch ? tokenMatch[1] : null;
-        if (!tokenTrue) {
+        const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+        // const tokenTrue = tokenMatch ? tokenMatch[1] : null;
+
+        if (!token) {
           console.log('🚫 No token provided in URL');
           throw new Error('No token provided ⚠️');
           // return false;
         }
+
+        console.log('🔑 [Auth] Token found, verifying...', token);
+
         try {
-          const payload = this.jwtService.verify(tokenTrue);
+          const payload = this.jwtService.verify(token);
           const user = await this.usersService.findById(payload.sub);
-          data.context = { userId: payload.sub, userName: `${user.firstName} ${user?.lastName}` };
+
+          console.log("User in payload", user)
+
+          if (!user) {
+            console.error('❌ [Auth] User not found:', payload.sub);
+            throw new Error('User not found');
+          }
+
+          data.context = { userId: payload.sub, userName: `${user.firstName} ${user?.lastName}`.trim() };
+
           console.log(
-            `✅ \x1b[1m${data.context.userName}\x1b[0m 🛡️  authenticated for 📄 ${data.documentName}`,
+            `✅ [Auth] \x1b[1m${data.context.userName}\x1b[0m 🛡️  authenticated for 📄 ${data.documentName}`,
           );
+
           return data.context;
           // return true;
         } catch (error) {
