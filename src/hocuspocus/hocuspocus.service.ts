@@ -88,52 +88,76 @@ export class HocuspocusService implements OnModuleInit {
       },
 
       onAuthenticate: async (data) => {
-        const url = (data.requestHeaders['x-forwarded-url'] as string) || (data.request.url as string);
-
-        console.log('🔍 [Auth] Full URL:', url);
-        console.log('🔍 [Auth] Headers:', data.requestHeaders);
-
-        if (!url) {
-          console.log('🚫 No URL provided for authentication');
-          throw new Error('❌ No URL provided ❌');
-          // return false;
-        }
-
-        const tokenMatch = url.match(/token=([^&]+)/);
-        const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
-        // const tokenTrue = tokenMatch ? tokenMatch[1] : null;
-
-        if (!token) {
-          console.log('🚫 No token provided in URL');
-          throw new Error('No token provided ⚠️');
-          // return false;
-        }
-
-        console.log('🔑 [Auth] Token found, verifying...', token);
-
         try {
+          // console.log('🔍 [Auth] Document:', data.documentName);
+          // console.log('🔍 [Auth] Connection:', data.connection.readyState);
+
+          // 🔑 Get token from multiple sources
+          let token = '';
+
+          // 1️⃣ Check token parameter (sent via HocuspocusProvider token option)
+          if (data.token) {
+            token = data.token;
+            console.log('✅ [Auth] Token found in data.token');
+          }
+
+          // 2️⃣ Check request URL (fallback)
+          if (!token) {
+            const url = (data.requestHeaders['x-forwarded-url'] as string) || (data.request?.url as string) || '';
+
+            console.log('🔍 [Auth] Request URL:', url);
+
+            const tokenMatch = url.match(/token=([^&]+)/);
+            if (tokenMatch) {
+              token = decodeURIComponent(tokenMatch[1]);
+              console.log('✅ [Auth] Token found in URL');
+            }
+          }
+
+          // 3️⃣ Check Authorization header
+          if (!token) {
+            const authHeader = data.requestHeaders['authorization'] as string;
+            if (authHeader?.startsWith('Bearer ')) {
+              token = authHeader.substring(7);
+              console.log('✅ [Auth] Token found in Authorization header');
+            }
+          }
+
+          // 4. Log all headers for debugging
+          // console.log('🔍 [Auth] All Headers:', JSON.stringify(data.requestHeaders));
+          // console.log('🔍 [Auth] Request Parameters:', data.requestParameters);
+
+          if (!token) {
+            console.error('🚫 [Auth] No token found anywhere! ⚠️');
+            throw new Error('No authentication token provided');
+          }
+
+          // 1️⃣ Verify JWT
+          console.log('🔐 [Auth] Verifying JWT...');
+          console.log('🔑 [Auth] Token (first 20 chars), verifying...', token.substring(0, 20) + '...');
+
           const payload = this.jwtService.verify(token);
+          console.log('✅ [Auth] JWT verified, payload:', { sub: payload.sub, role: payload.role });
+
+          // 2️⃣ Get user from database
           const user = await this.usersService.findById(payload.sub);
 
-          console.log("User in payload", user)
-
           if (!user) {
-            console.error('❌ [Auth] User not found:', payload.sub);
+            console.error('❌ [Auth] User not found in database:', payload.sub);
             throw new Error('User not found');
           }
 
-          data.context = { userId: payload.sub, userName: `${user.firstName} ${user?.lastName}`.trim() };
+          // 3️⃣ Set context
+          data.context = { userId: payload.sub, userName: `${user.firstName} ${user?.lastName}`.trim()};
 
-          console.log(
-            `✅ [Auth] \x1b[1m${data.context.userName}\x1b[0m 🛡️  authenticated for 📄 ${data.documentName}`,
-          );
+          console.log(`✅ 👤 \x1b[1m${data.context.userName}\x1b[0m 🛡️  authenticated for 📄 ${data.documentName}`)
 
           return data.context;
-          // return true;
+
         } catch (error) {
-          console.log(`🚫 Invalid JWT token: ${error.message}`);
-          throw new Error('Invalid JWT token ⚠️');
-          // return false;
+          console.error('❌ [Auth] Error:', error.message);
+          console.error('❌ [Auth] Stack:', error.stack);
+          throw new Error(`Authentication failed ⚠️: ${error.message}`);
         }
       },
 
