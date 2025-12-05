@@ -74,19 +74,9 @@ export class HocuspocusService implements OnModuleInit {
 
     this.server = new Server({
       port,
-      address: '0.0.0.0',
       debounce: 3000,
       maxDebounce: 10000,
       name: 'AI-Editor-Collab',
-
-      async onConfigure(data) {
-        return {
-          cors: {
-            origin: '*', // Or specify your frontend domain
-            credentials: true,
-          },
-        };
-      },
 
       onConnect: async (data) => {
         const userName = data.context.userName;
@@ -158,7 +148,7 @@ export class HocuspocusService implements OnModuleInit {
           }
 
           // 3️⃣ Set context
-          data.context = { userId: payload.sub, userName: `${user.firstName} ${user?.lastName}`.trim() };
+          data.context = { userId: payload.sub, userName: `${user.firstName} ${user?.lastName}`.trim()};
 
           console.log(`✅ 👤 \x1b[1m${data.context.userName}\x1b[0m 🛡️  authenticated for 📄 ${data.documentName}`)
 
