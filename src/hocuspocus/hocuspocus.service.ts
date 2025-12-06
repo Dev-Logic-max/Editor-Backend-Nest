@@ -3,7 +3,7 @@ import * as Y from 'yjs';
 import { Server } from '@hocuspocus/server';
 import { TiptapTransformer } from '@hocuspocus/transformer';
 
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
@@ -36,6 +36,7 @@ import cleanTiptapContent from 'src/common/utils/cleanTiptapContent';
 @Injectable()
 export class HocuspocusService implements OnModuleInit {
   private server: Server;
+  private readonly logger = new Logger(HocuspocusService.name);
 
   constructor(
     private configService: ConfigService,
@@ -84,13 +85,15 @@ export class HocuspocusService implements OnModuleInit {
           (data.requestHeaders['x-forwarded-url'] as string) || (data.request.url as string);
         const userIdMatch = url.match(/userId=([^&]+)/);
         const userId = userIdMatch ? userIdMatch[1] : 'unknown';
-        console.log(`👤 ${userName || userId} connected to document ${data.documentName} 📄`);
+        // console.log(`👤 ${userName || userId} connected to document ${data.documentName} 📄`);
+        this.logger.log(`👤 ${userName || userId} connected to document ${data.documentName} 📄`);
       },
 
       onAuthenticate: async (data) => {
+        this.logger.log('🪧  [Auth] Starting authentication...');
         try {
-          // console.log('🔍 [Auth] Document:', data.documentName);
-          // console.log('🔍 [Auth] Connection:', data.connection.readyState);
+          // this.logger.log('🔍 [Auth] Document:', data.documentName);
+          // this.logger.log('🔍 [Auth] Connection:', data.connection.readyState);
 
           // 🔑 Get token from multiple sources
           let token = '';
@@ -98,19 +101,19 @@ export class HocuspocusService implements OnModuleInit {
           // 1️⃣ Check token parameter (sent via HocuspocusProvider token option)
           if (data.token) {
             token = data.token;
-            console.log('✅ [Auth] Token found in data.token');
+            this.logger.log('1️⃣  [Auth] Token found in data.token');
           }
 
           // 2️⃣ Check request URL (fallback)
           if (!token) {
             const url = (data.requestHeaders['x-forwarded-url'] as string) || (data.request?.url as string) || '';
 
-            console.log('🔍 [Auth] Request URL:', url);
+            this.logger.log('🔍 [Auth] Request URL:', url);
 
-            const tokenMatch = url.match(/token=([^&]+)/);
+            const tokenMatch = url.match(/[?&]token=([^&]+)/);
             if (tokenMatch) {
               token = decodeURIComponent(tokenMatch[1]);
-              console.log('✅ [Auth] Token found in URL');
+              this.logger.log('2️⃣  [Auth] Token found in URL');
             }
           }
 
@@ -119,13 +122,13 @@ export class HocuspocusService implements OnModuleInit {
             const authHeader = data.requestHeaders['authorization'] as string;
             if (authHeader?.startsWith('Bearer ')) {
               token = authHeader.substring(7);
-              console.log('✅ [Auth] Token found in Authorization header');
+              this.logger.log('3️⃣  [Auth] Token found in Authorization header');
             }
           }
 
           // 4. Log all headers for debugging
-          // console.log('🔍 [Auth] All Headers:', JSON.stringify(data.requestHeaders));
-          // console.log('🔍 [Auth] Request Parameters:', data.requestParameters);
+          // this.logger.log('🔍 [Auth] All Headers:', JSON.stringify(data.requestHeaders));
+          // this.logger.log('🔍 [Auth] Request Parameters:', data.requestParameters);
 
           if (!token) {
             console.error('🚫 [Auth] No token found anywhere! ⚠️');
@@ -133,11 +136,11 @@ export class HocuspocusService implements OnModuleInit {
           }
 
           // 1️⃣ Verify JWT
-          console.log('🔐 [Auth] Verifying JWT...');
-          console.log('🔑 [Auth] Token (first 20 chars), verifying...', token.substring(0, 20) + '...');
+          this.logger.log('🔐 [Auth] Verifying JWT...');
+          this.logger.log('🔑 [Auth] Token (first 20 chars), verifying...', token.substring(0, 20) + '...');
 
           const payload = this.jwtService.verify(token);
-          console.log('✅ [Auth] JWT verified, payload:', { sub: payload.sub, role: payload.role });
+          this.logger.log('✅ [Auth] JWT verified, payload:', { sub: payload.sub, role: payload.role });
 
           // 2️⃣ Get user from database
           const user = await this.usersService.findById(payload.sub);
@@ -150,7 +153,7 @@ export class HocuspocusService implements OnModuleInit {
           // 3️⃣ Set context
           data.context = { userId: payload.sub, userName: `${user.firstName} ${user?.lastName}`.trim()};
 
-          console.log(`✅ 👤 \x1b[1m${data.context.userName}\x1b[0m 🛡️  authenticated for 📄 ${data.documentName}`)
+          this.logger.log(`✅ 👤 \x1b[1m${data.context.userName}\x1b[0m 🛡️  authenticated for 📄 ${data.documentName}`)
 
           return data.context;
 
@@ -166,7 +169,7 @@ export class HocuspocusService implements OnModuleInit {
         const userId = data.context.userId;
 
         if (!userId) {
-          console.log(`🚫 No userId in context for document ${docId}`);
+          this.logger.log(`🚫 No userId in context for document ${docId}`);
           throw new Error('❗User not authenticated❗');
         }
 
@@ -179,19 +182,19 @@ export class HocuspocusService implements OnModuleInit {
 
             // ✅ CRITICAL FIX: Clean the content before transforming
             json = cleanTiptapContent(json);
-            console.log('🧹 Content cleaned, transforming to Y.Doc...');
+            this.logger.log('🧹 Content cleaned, transforming to Y.Doc...');
 
             // const yDoc = TiptapTransformer.toYdoc(json, 'document');
             TiptapTransformer.toYdoc(json, 'document', SCHEMA_EXTENSIONS);
-            console.log(
+            this.logger.log(
               `🔄️ Loaded 📑 document ${docId} for 👤 \x1b[1m${data.context.userName}\x1b[0m`,
             );
           } else {
-            console.log(`⚠️ No content found for document ${docId}, starting fresh`);
+            this.logger.log(`⚠️ No content found for document ${docId}, starting fresh`);
           }
           return yDoc;
         } catch (error) {
-          console.log(`🚫 Failed to load document ${docId}: ${error.message}`);
+          this.logger.log(`🚫 Failed to load document ${docId}: ${error.message}`);
           throw error;
         }
 
@@ -214,16 +217,16 @@ export class HocuspocusService implements OnModuleInit {
         const userId = data.context.userId;
         const userName = data.context.userName;
         if (!userId) {
-          console.log(`🚫 No userId in context for document ${docId}`);
+          this.logger.log(`🚫 No userId in context for document ${docId}`);
           throw new Error('❗User not authenticated❗');
         }
         try {
           await this.documentsService.findById(userId, docId);
           const json = TiptapTransformer.fromYdoc(data.document, 'document');
           await this.documentsService.update(userId, docId, { content: json });
-          console.log(`💾 Document ${docId} saved by 👤 ${userName}`);
+          this.logger.log(`💾 Document ${docId} saved by 👤 ${userName}`);
         } catch (error) {
-          console.log(`🚫 Failed to persist document ${docId}: ${error.message}`);
+          this.logger.log(`🚫 Failed to persist document ${docId}: ${error.message}`);
           throw error;
         }
       },
@@ -233,14 +236,14 @@ export class HocuspocusService implements OnModuleInit {
         const url = data.requestHeaders['x-forwarded-url'] as string;
         const userIdMatch = url ? url.match(/userId=([^&]+)/) : null;
         const userId = userIdMatch ? userIdMatch[1] : 'unknown';
-        console.log(
+        this.logger.log(
           `🔌👤 ${userName || userId} disconnected from document ${data.documentName} 📄`,
         );
       },
     });
 
     await this.server.listen();
-    console.log(
+    this.logger.log(
       `🗄️  Hocuspocus server started on ws://localhost:${port} 🛰️`,
     );
   }
@@ -248,7 +251,7 @@ export class HocuspocusService implements OnModuleInit {
   async stop() {
     if (this.server) {
       await this.server.destroy();
-      console.log('🛑 Hocuspocus server stopped');
+      this.logger.log('🛑 Hocuspocus server stopped');
     }
   }
 }

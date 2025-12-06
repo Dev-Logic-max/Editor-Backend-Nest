@@ -13,7 +13,7 @@ async function bootstrap() {
 
   const port = configService.get('PORT') || 3033;
 
-  // ------ Increase payload limit ------ //
+  // ---------- Payload limit ---------- //
   app.use(bodyParser.json({ limit: '50mb' }));
   app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
