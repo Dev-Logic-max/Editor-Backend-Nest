@@ -84,6 +84,28 @@ export class HocuspocusService implements OnModuleInit {
         console.log(`📨 [Request] URL: ${data.request?.url}`);
       },
 
+      onAuthenticate: async (data) => {
+        console.log('🔍 ====== AUTH REQUEST ======');
+        console.log('URL:', data.request?.url);
+        console.log('Document:', data.documentName);
+
+        const url = (data.requestHeaders['x-forwarded-url'] as string) || (data.request.url as string);
+        const userIdMatch = url.match(/userId=([^&]+)/);
+        const userId = userIdMatch ? userIdMatch[1] : 'unknown';
+
+        const user = await this.usersService.findById(userId);
+        data.context = { userId: userId, userName: `${user.firstName} ${user?.lastName}`.trim()};
+
+        // ⚠️ TEMPORARY: Bypass authentication
+        // data.context = {
+        //   userId: '', // Replace with actual user ID
+        //   userName: ''
+        // };
+
+        console.log('✅ Auth bypassed for development');
+        return data.context;
+      },
+
       onConnect: async (data) => {
         const userName = data.context.userName;
         const url = (data.requestHeaders['x-forwarded-url'] as string) || (data.request.url as string);
@@ -92,80 +114,80 @@ export class HocuspocusService implements OnModuleInit {
         console.log(`👤 ${userName || userId} connected to document ${data.documentName} 📄`);
       },
 
-      onAuthenticate: async (data) => {
-        console.log('🪧  [Auth] Starting authentication...');
-        try {
-          // console.log('🔍 [Auth] Document:', data.documentName);
-          // console.log('🔍 [Auth] Connection:', data.connection.readyState);
+      // onAuthenticate: async (data) => {
+      //   console.log('🪧  [Auth] Starting authentication...');
+      //   try {
+      //     // console.log('🔍 [Auth] Document:', data.documentName);
+      //     // console.log('🔍 [Auth] Connection:', data.connection.readyState);
 
-          // 🔑 Get token from multiple sources
-          let token = '';
+      //     // 🔑 Get token from multiple sources
+      //     let token = '';
 
-          // 1️⃣ Check token parameter (sent via HocuspocusProvider token option)
-          if (data.token) {
-            token = data.token;
-            console.log('1️⃣  [Auth] Token found in data.token');
-          }
+      //     // 1️⃣ Check token parameter (sent via HocuspocusProvider token option)
+      //     if (data.token) {
+      //       token = data.token;
+      //       console.log('1️⃣  [Auth] Token found in data.token');
+      //     }
 
-          // 2️⃣ Check request URL (fallback)
-          if (!token) {
-            const url = (data.requestHeaders['x-forwarded-url'] as string) || (data.request?.url as string) || '';
+      //     // 2️⃣ Check request URL (fallback)
+      //     if (!token) {
+      //       const url = (data.requestHeaders['x-forwarded-url'] as string) || (data.request?.url as string) || '';
 
-            console.log('🔍 [Auth] Request URL:', url);
+      //       console.log('🔍 [Auth] Request URL:', url);
 
-            const tokenMatch = url.match(/[?&]token=([^&]+)/);
-            if (tokenMatch) {
-              token = decodeURIComponent(tokenMatch[1]);
-              console.log('2️⃣  [Auth] Token found in URL');
-            }
-          }
+      //       const tokenMatch = url.match(/[?&]token=([^&]+)/);
+      //       if (tokenMatch) {
+      //         token = decodeURIComponent(tokenMatch[1]);
+      //         console.log('2️⃣  [Auth] Token found in URL');
+      //       }
+      //     }
 
-          // 3️⃣ Check Authorization header
-          if (!token) {
-            const authHeader = data.requestHeaders['authorization'] as string;
-            if (authHeader?.startsWith('Bearer ')) {
-              token = authHeader.substring(7);
-              console.log('3️⃣  [Auth] Token found in Authorization header');
-            }
-          }
+      //     // 3️⃣ Check Authorization header
+      //     if (!token) {
+      //       const authHeader = data.requestHeaders['authorization'] as string;
+      //       if (authHeader?.startsWith('Bearer ')) {
+      //         token = authHeader.substring(7);
+      //         console.log('3️⃣  [Auth] Token found in Authorization header');
+      //       }
+      //     }
 
-          // 4. Log all headers for debugging
-          // console.log('🔍 [Auth] All Headers:', JSON.stringify(data.requestHeaders));
-          // console.log('🔍 [Auth] Request Parameters:', data.requestParameters);
+      //     // 4. Log all headers for debugging
+      //     // console.log('🔍 [Auth] All Headers:', JSON.stringify(data.requestHeaders));
+      //     // console.log('🔍 [Auth] Request Parameters:', data.requestParameters);
 
-          if (!token) {
-            console.error('🚫 [Auth] No token found anywhere! ⚠️');
-            throw new Error('No authentication token provided');
-          }
+      //     if (!token) {
+      //       console.error('🚫 [Auth] No token found anywhere! ⚠️');
+      //       throw new Error('No authentication token provided');
+      //     }
 
-          // 1️⃣ Verify JWT
-          console.log('🔐 [Auth] Verifying JWT...');
-          console.log('🔑 [Auth] Token (first 20 chars), verifying...', token.substring(0, 20) + '...');
+      //     // 1️⃣ Verify JWT
+      //     console.log('🔐 [Auth] Verifying JWT...');
+      //     console.log('🔑 [Auth] Token (first 20 chars), verifying...', token.substring(0, 20) + '...');
 
-          const payload = this.jwtService.verify(token);
-          console.log('✅ [Auth] JWT verified, payload:', { sub: payload.sub, role: payload.role });
+      //     const payload = this.jwtService.verify(token);
+      //     console.log('✅ [Auth] JWT verified, payload:', { sub: payload.sub, role: payload.role });
 
-          // 2️⃣ Get user from database
-          const user = await this.usersService.findById(payload.sub);
+      //     // 2️⃣ Get user from database
+      //     const user = await this.usersService.findById(payload.sub);
 
-          if (!user) {
-            console.error('❌ [Auth] User not found in database:', payload.sub);
-            throw new Error('User not found');
-          }
+      //     if (!user) {
+      //       console.error('❌ [Auth] User not found in database:', payload.sub);
+      //       throw new Error('User not found');
+      //     }
 
-          // 3️⃣ Set context
-          data.context = { userId: payload.sub, userName: `${user.firstName} ${user?.lastName}`.trim()};
+      //     // 3️⃣ Set context
+      //     data.context = { userId: payload.sub, userName: `${user.firstName} ${user?.lastName}`.trim()};
 
-          console.log(`✅ 👤 \x1b[1m${data.context.userName}\x1b[0m 🛡️  authenticated for 📄 ${data.documentName}`)
+      //     console.log(`✅ 👤 \x1b[1m${data.context.userName}\x1b[0m 🛡️  authenticated for 📄 ${data.documentName}`)
 
-          return data.context;
+      //     return data.context;
 
-        } catch (error) {
-          console.error('❌ [Auth] Error:', error.message);
-          console.error('❌ [Auth] Stack:', error.stack);
-          throw new Error(`Authentication failed ⚠️: ${error.message}`);
-        }
-      },
+      //   } catch (error) {
+      //     console.error('❌ [Auth] Error:', error.message);
+      //     console.error('❌ [Auth] Stack:', error.stack);
+      //     throw new Error(`Authentication failed ⚠️: ${error.message}`);
+      //   }
+      // },
 
       onLoadDocument: async (data): Promise<Y.Doc> => {
         const docId = data.documentName;
@@ -181,7 +203,7 @@ export class HocuspocusService implements OnModuleInit {
           const doc = await this.documentsService.findById(userId, docId);
 
           const yDoc = new Y.Doc();
-          
+
           if (doc && doc.content) {
             // const json = typeof doc.content === 'string' ? JSON.parse(doc.content) : doc.content;
             let json = typeof doc.content === 'string' ? JSON.parse(doc.content) : doc.content;
@@ -192,7 +214,7 @@ export class HocuspocusService implements OnModuleInit {
 
             // const yDoc = TiptapTransformer.toYdoc(json, 'document', SCHEMA_EXTENSIONS);
 
-            TiptapTransformer.toYdoc(json, 'document', SCHEMA_EXTENSIONS);
+            TiptapTransformer.toYdoc(json, 'document', SCHEMA_EXTENSIONS,);
             console.log(
               `🔄️ Loaded 📑 document ${docId} for 👤 \x1b[1m${data.context.userName}\x1b[0m`,
             );
