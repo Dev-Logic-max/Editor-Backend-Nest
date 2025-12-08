@@ -41,18 +41,16 @@ async function bootstrap() {
   console.log('✨ ============================================== ✨');
   console.log(`🚀 Backend is running on http://localhost:${port} 🚀`);
 
-  
-    const hocuspocusPath = path.join(__dirname, 'hocuspocus-standalone/server.js');
-    const hocuspocus = spawn('node', [hocuspocusPath], {
-      stdio: 'inherit',
-      env: { ...process.env }
-    });
-    
-    hocuspocus.on('error', (err) => {
-      console.error('❌ Hocuspocus failed:', err);
-    });
-    
-    console.log('🛰️ Hocuspocus started');
-  
+  const hocuspocusPath = path.join(__dirname, 'hocuspocus-standalone/server.js');
+  const hocuspocus = spawn('node', [hocuspocusPath], {
+    stdio: 'inherit',
+    env: { ...process.env }
+  });
+
+  hocuspocus.on('error', (err) => {
+    console.error('❌ Hocuspocus failed:', err);
+  });
+
+  console.log('🛰️ Hocuspocus started');
 }
 bootstrap();
