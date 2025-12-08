@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module';
+import { spawn } from 'child_process';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -39,5 +40,19 @@ async function bootstrap() {
 
   console.log('✨ ============================================== ✨');
   console.log(`🚀 Backend is running on http://localhost:${port} 🚀`);
+
+  
+    const hocuspocusPath = path.join(__dirname, 'hocuspocus-standalone/server.js');
+    const hocuspocus = spawn('node', [hocuspocusPath], {
+      stdio: 'inherit',
+      env: { ...process.env }
+    });
+    
+    hocuspocus.on('error', (err) => {
+      console.error('❌ Hocuspocus failed:', err);
+    });
+    
+    console.log('🛰️ Hocuspocus started');
+  
 }
 bootstrap();
