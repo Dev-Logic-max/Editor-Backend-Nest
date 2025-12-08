@@ -17,7 +17,13 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+
+    "build:hocuspocus": "tsc src/hocuspocus-standalone/server.ts --outDir dist/hocuspocus --module commonjs --esModuleInterop --resolveJsonModule --skipLibCheck --experimentalDecorators --emitDecoratorMetadata",
+    
+    "start:hocuspocus:dev": "ts-node src/hocuspocus-standalone/server.ts",
+    "start:hocuspocus": "node dist/hocuspocus/server.js",
+    "dev:all": "concurrently \"npm run start:dev\" \"npm run start:hocuspocus:dev\""
   },
   "dependencies": {
     "@hocuspocus/extension-database": "^3.4.0",
@@ -54,6 +60,7 @@
     "@tiptap/extension-table-header": "^3.11.1",
     "@tiptap/extension-table-row": "^3.11.1",
     "@tiptap/extension-text": "^3.11.1",
+    "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
