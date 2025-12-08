@@ -104,11 +104,10 @@ const httpServer = createServer((req, res) => {
   res.end('Not found');
 });
 
-const PORT = parseInt(process.env.HOCUSPOCUS_PORT || '3033');
+const PORT = parseInt(process.env.PORT || '3033');
 
 // Create Hocuspocus server
 const hocuspocus = new Server({
-  //   port: parseInt(process.env.HOCUSPOCUS_PORT || '1234'),
   port: PORT,
   debounce: 3000,
   maxDebounce: 10000,
