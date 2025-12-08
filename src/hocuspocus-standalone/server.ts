@@ -106,7 +106,7 @@ const httpServer = createServer((req, res) => {
 
 // Create Hocuspocus server
 const hocuspocus = new Server({
-  port: parseInt(process.env.HOCUSPOCUS_PORT || '1234'),
+//   port: parseInt(process.env.HOCUSPOCUS_PORT || '1234'),
   debounce: 3000,
   maxDebounce: 10000,
   name: 'AI-Editor-Collab',
