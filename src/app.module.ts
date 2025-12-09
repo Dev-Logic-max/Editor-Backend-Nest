@@ -8,7 +8,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { DocumentsModule } from './documents/documents.module';
-// import { HocuspocusModule } from './hocuspocus/hocuspocus.module';
+import { HocuspocusModule } from './hocuspocus/hocuspocus.module';
 import { RequestsModule } from './requests/requests.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
@@ -56,12 +56,11 @@ import { AIHistoryModule } from './ai/ai-history.module';
     UploadsModule,
     DatabaseModule,
     DocumentsModule,
-    // HocuspocusModule,
+    HocuspocusModule,
     RequestsModule,
     AIHistoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
-  exports: [AppModule]
 })
 export class AppModule { }
