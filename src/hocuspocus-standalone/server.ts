@@ -2,14 +2,13 @@
 import * as Y from 'yjs';
 import { Server } from '@hocuspocus/server';
 import { TiptapTransformer } from '@hocuspocus/transformer';
-import { createServer } from 'http';
 import * as jwt from 'jsonwebtoken';
 import { NestFactory } from '@nestjs/core';
 
 // Import your NestJS modules
-import { AppModule } from 'src/app.module';
-import { UsersService } from 'src/users/users.service';
-import { DocumentsService } from 'src/documents/documents.service';
+import { AppModule } from '../app.module';
+import { UsersService } from '../users/users.service';
+import { DocumentsService } from '../documents/documents.service';
 
 // TipTap extensions
 import Image from '@tiptap/extension-image';
@@ -89,48 +88,35 @@ async function initializeServices() {
   console.log('✅ NestJS services initialized');
 }
 
-// Create HTTP server
-const httpServer = createServer((req, res) => {
-  if (req.url === '/health' || req.url === '/') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ 
-      status: 'healthy', 
-      service: 'hocuspocus-collaboration',
-      timestamp: new Date().toISOString()
-    }));
-    return;
-  }
-  res.writeHead(404);
-  res.end('Not found');
-});
+// ✅ FIX: Use a DIFFERENT port than main API
+// Main API uses PORT (8080), Hocuspocus uses PORT + 1000
+const MAIN_PORT = parseInt(process.env.PORT || '3030');
+const HOCUSPOCUS_PORT = MAIN_PORT + 1000; // e.g., 8080 + 1000 = 9080
 
-const PORT = parseInt(process.env.HOCUSPOCUS_PORT || '3033');
-
-// Create Hocuspocus server
+// Create Hocuspocus server WITHOUT creating HTTP server
+// Let Hocuspocus create its own server
 const hocuspocus = new Server({
-  port: PORT,
+  port: HOCUSPOCUS_PORT,
   debounce: 3000,
   maxDebounce: 10000,
   name: 'AI-Editor-Collab',
 
   onRequest: async (data) => {
-    console.log('📨 [Request] Incoming request');
+    console.log('📨 [Request] Incoming');
   },
 
   onConnect: async (data) => {
     const userName = data.context?.userName || 'Unknown';
-    const userId = data.context?.userId || 'unknown';
-    console.log(`👤 ${userName} (${userId}) connected to ${data.documentName} 📄`);
+    console.log(`👤 ${userName} connected to ${data.documentName}`);
   },
 
   onAuthenticate: async (data) => {
-    console.log('🪧 [Auth] Starting authentication...');
+    console.log('🪧 [Auth] Starting...');
     try {
       let token = '';
 
       if (data.token) {
         token = data.token;
-        console.log('1️⃣ [Auth] Token found in data.token');
       }
 
       if (!token) {
@@ -139,28 +125,22 @@ const hocuspocus = new Server({
         const tokenMatch = url.match(/[?&]token=([^&]+)/);
         if (tokenMatch) {
           token = decodeURIComponent(tokenMatch[1]);
-          console.log('2️⃣ [Auth] Token found in URL');
         }
       }
 
       if (!token) {
-        console.error('🚫 [Auth] No token found!');
-        throw new Error('No authentication token provided');
+        throw new Error('No authentication token');
       }
-
-      console.log('🔐 [Auth] Verifying JWT...');
 
       const JWT_SECRET = process.env.JWT_SECRET;
       if (!JWT_SECRET) throw new Error('JWT_SECRET not configured');
 
       const payload = jwt.verify(token, JWT_SECRET) as any;
-      console.log('✅ [Auth] JWT verified:', { sub: payload.sub, role: payload.role });
+      console.log('✅ JWT verified:', payload.sub);
 
-      // ✅ Use NestJS service directly
       const user = await usersService.findById(payload.sub);
 
       if (!user) {
-        console.error('❌ [Auth] User not found:', payload.sub);
         throw new Error('User not found');
       }
 
@@ -170,12 +150,11 @@ const hocuspocus = new Server({
         userName: `${user.firstName} ${user.lastName || ''}`.trim()
       };
 
-      console.log(`✅ 👤 ${data.context.userName} 🛡️ authenticated for 📄 ${data.documentName}`);
-
+      console.log(`✅ ${data.context.userName} authenticated`);
       return data.context;
 
     } catch (error: any) {
-      console.error('❌ [Auth] Error:', error.message);
+      console.error('❌ Auth error:', error.message);
       throw new Error(`Authentication failed: ${error.message}`);
     }
   },
@@ -183,15 +162,12 @@ const hocuspocus = new Server({
   onLoadDocument: async (data): Promise<Y.Doc> => {
     const docId = data.documentName;
     const userId = data.context?.userId;
-    const userName = data.context?.userName;
 
     if (!userId) {
-      console.log(`🚫 No userId for document ${docId}`);
       throw new Error('User not authenticated');
     }
 
     try {
-      // ✅ Use NestJS service directly
       const doc = await documentsService.findById(userId, docId);
       const yDoc = new Y.Doc();
       
@@ -201,17 +177,15 @@ const hocuspocus = new Server({
           : doc.content;
 
         json = cleanTiptapContent(json);
-        console.log('🧹 Content cleaned');
-
         TiptapTransformer.toYdoc(json, 'document', SCHEMA_EXTENSIONS);
-        console.log(`🔄️ Loaded "${doc.title}" for 👤 ${userName}`);
+        console.log(`🔄 Loaded "${doc.title}"`);
       } else {
-        console.log(`⚠️ No content for document ${docId}`);
+        console.log(`⚠️ No content for ${docId}`);
       }
       
       return yDoc;
     } catch (error: any) {
-      console.log(`🚫 Failed to load document ${docId}: ${error.message}`);
+      console.log(`🚫 Load failed: ${error.message}`);
       return new Y.Doc();
     }
   },
@@ -219,66 +193,50 @@ const hocuspocus = new Server({
   onStoreDocument: async (data) => {
     const docId = data.documentName;
     const userId = data.context?.userId;
-    const userName = data.context?.userName || 'Unknown';
     
-    if (!userId) {
-      console.log(`🚫 No userId for document ${docId}`);
-      return;
-    }
+    if (!userId) return;
     
     try {
       const json = TiptapTransformer.fromYdoc(data.document, 'document');
-      
-      // ✅ Use NestJS service directly
       await documentsService.update(userId, docId, { content: json });
-      
-      console.log(`💾 Document ${docId} saved by 👤 ${userName}`);
+      console.log(`💾 Saved ${docId}`);
     } catch (error: any) {
-      console.log(`🚫 Failed to save document ${docId}: ${error.message}`);
+      console.log(`🚫 Save failed: ${error.message}`);
     }
   },
 
   onDisconnect: async (data) => {
     const userName = data.context?.userName || 'Unknown';
-    console.log(`🔌 ${userName} disconnected from ${data.documentName}`);
+    console.log(`🔌 ${userName} disconnected`);
   },
 });
 
-// Start everything
+// Start function
 async function bootstrap() {
-  // Initialize NestJS services first
   await initializeServices();
 
-  const PORT = parseInt(process.env.HOCUSPOCUS_PORT || '1234');
-  const HOST = '0.0.0.0';
-
-  // Start HTTP server
-  httpServer.listen(PORT, HOST, () => {
-    console.log(`
+  console.log(`
   ✨  ================================  ✨
-  🛰️  Hocuspocus Server Started
-  🛰️  Port: ${PORT}  Host: ${HOST}
-  🛰️  Health: http://${HOST}:${PORT}/health
+  🛰️  Hocuspocus Starting...
+  🛰️  Port: ${HOCUSPOCUS_PORT}
   ✨  ================================  ✨
-    `);
-  });
+  `);
 
-  // Attach Hocuspocus
   await hocuspocus.listen();
+  
+  console.log(`✅ Hocuspocus running on port ${HOCUSPOCUS_PORT}`);
 }
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down...');
   await hocuspocus.destroy();
-  httpServer.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\n🛑 Shutting down...');
   await hocuspocus.destroy();
-  httpServer.close();
   process.exit(0);
 });
 
