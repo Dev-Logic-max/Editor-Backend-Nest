@@ -85,9 +85,12 @@ export class HocuspocusService implements OnModuleInit {
           const userName = `${user.firstName} ${user.lastName}`.trim();
           
           // Store in context for later use
-          data.context = { userId, userName };
+          data.context = { userId: user._id, userName: userName };
 
-          this.logger.log(`👤 ${userName} (${userId}) connected to 📄 ${data.documentName}`);
+          console.log(`👤 ${userName} (${userId}) connected to 📄 ${data.documentName}`);
+
+          return data.context;
+
         } catch (error) {
           this.logger.warn(`⚠️ Could not load user ${userId}: ${error.message}`);
           data.context = { userId, userName: 'Anonymous' };
@@ -117,7 +120,7 @@ export class HocuspocusService implements OnModuleInit {
 
             TiptapTransformer.toYdoc(json, 'document', SCHEMA_EXTENSIONS,);
             console.log(
-              `🔄️ Loaded 📑 ${doc.title} for 👤 \x1b[1m${data.context.userName}\x1b[0m`,
+              `🔄️ Loaded 📑 \x1b[1m${doc.title}\x1b[0m for 👤 \x1b[1m${data.context.userName}\x1b[0m`,
             );
 
             // return yDoc;
