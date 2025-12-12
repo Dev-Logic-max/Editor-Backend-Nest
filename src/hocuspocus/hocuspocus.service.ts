@@ -46,7 +46,7 @@ export class HocuspocusService implements OnModuleInit {
   }
 
   // private async startServer() {
-  attachToHttpServer(httpServer: any) {
+  async attachToHttpServer(httpServer: any) {
     const SCHEMA_EXTENSIONS = [
       Document,
       Paragraph,
@@ -173,7 +173,33 @@ export class HocuspocusService implements OnModuleInit {
     // );
 
     // ✅ Attach to existing HTTP server instead of creating new one
-    this.server.listen(httpServer);
+    // Attach Hocuspocus to an existing Nest HTTP server by forwarding
+    // websocket upgrade requests to Hocuspocus' internal WebSocket server.
+    // The Server.listen API expects a numeric port (it creates its own
+    // HTTP server). Passing the Nest HTTP server directly as a "port"
+    // caused the runtime error seen earlier. Instead, set the internal
+    // httpServer reference and hook into the `upgrade` event.
+    this.server.httpServer = httpServer as any;
+
+    httpServer.on('upgrade', async (request: any, socket: any, head: any) => {
+      try {
+        await this.server.hocuspocus.hooks('onUpgrade', {
+          request,
+          socket,
+          head,
+          instance: this.server.hocuspocus,
+        });
+
+        this.server.webSocketServer.handleUpgrade(request, socket, head, (ws) => {
+          this.server.webSocketServer.emit('connection', ws, request);
+        });
+      } catch (error) {
+        // If a hook rejects and provides an error, destroy the socket to
+        // prevent the connection from hanging.
+        if (socket && typeof socket.destroy === 'function') socket.destroy();
+      }
+    });
+
     const port = this.configService.get('PORT') || 3030;
     console.log(`🗄️ Hocuspocus attached to HTTP server on port ${port} 🛰️`);
   }

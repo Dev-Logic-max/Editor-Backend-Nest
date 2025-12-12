@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module';
+import { HocuspocusService } from './hocuspocus/hocuspocus.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -37,7 +38,13 @@ async function bootstrap() {
   // ---------- LISTEN ---------- //
   await app.listen(port);
 
+  // ✅ ATTACH HOCUSPOCUS TO THE SAME HTTP SERVER
+  const httpServer = app.getHttpServer();
+  const hocuspocusService = app.get(HocuspocusService);
+  hocuspocusService.attachToHttpServer(httpServer);
+
   console.log('✨ ============================================== ✨');
   console.log(`🚀 Backend is running on http://localhost:${port} 🚀`);
+  console.log(`🗄️ Hocuspocus WebSocket available on ws://localhost:${port} 🛰️`);
 }
 bootstrap();
