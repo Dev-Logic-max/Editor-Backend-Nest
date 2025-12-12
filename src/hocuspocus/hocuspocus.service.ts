@@ -1,7 +1,7 @@
 import * as Y from 'yjs';
 import { Server } from '@hocuspocus/server';
 import { TiptapTransformer } from '@hocuspocus/transformer';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
@@ -32,7 +32,6 @@ import { TableKit } from '@tiptap/extension-table';
 @Injectable()
 export class HocuspocusService implements OnModuleInit {
   private server: Server;
-  private readonly logger = new Logger(HocuspocusService.name);
 
   constructor(
     private configService: ConfigService,
@@ -42,10 +41,12 @@ export class HocuspocusService implements OnModuleInit {
   ) { }
 
   async onModuleInit() {
-    await this.startServer();
+    console.log('⏳ Hocuspocus service initialized (waiting for HTTP server)');
+    // await this.startServer();
   }
 
-  private async startServer() {
+  // private async startServer() {
+  attachToHttpServer(httpServer: any) {
     const SCHEMA_EXTENSIONS = [
       Document,
       Paragraph,
@@ -67,10 +68,10 @@ export class HocuspocusService implements OnModuleInit {
       TableKit,
     ];
 
-    const port = Number(this.configService.get('HOCUSPOCUS_PORT')) || 1234
+    // const port = Number(this.configService.get('HOCUSPOCUS_PORT')) || 1234
 
     this.server = new Server({
-      port,
+      // port,
       debounce: 3000,
       maxDebounce: 10000,
       name: 'AI-Editor-Collab',
@@ -83,7 +84,7 @@ export class HocuspocusService implements OnModuleInit {
         try {
           const user = await this.usersService.findById(userId);
           const userName = `${user.firstName} ${user.lastName}`.trim();
-          
+
           // Store in context for later use
           data.context = { userId: user._id, userName: userName };
 
@@ -92,7 +93,7 @@ export class HocuspocusService implements OnModuleInit {
           return data.context;
 
         } catch (error) {
-          this.logger.warn(`⚠️ Could not load user ${userId}: ${error.message}`);
+          console.warn(`⚠️ Could not load user ${userId}: ${error.message}`);
           data.context = { userId, userName: 'Anonymous' };
         }
       },
@@ -165,10 +166,16 @@ export class HocuspocusService implements OnModuleInit {
       },
     });
 
-    await this.server.listen();
-    console.log(
-      `🗄️  Hocuspocus server started on ws://localhost:${port} 🛰️`,
-    );
+    // await this.server.listen();
+
+    // console.log(
+    //   `🗄️  Hocuspocus server started on ws://localhost:${port} 🛰️`,
+    // );
+
+    // ✅ Attach to existing HTTP server instead of creating new one
+    this.server.listen(httpServer);
+    const port = this.configService.get('PORT') || 3030;
+    console.log(`🗄️ Hocuspocus attached to HTTP server on port ${port} 🛰️`);
   }
 
   async stop() {
@@ -176,5 +183,9 @@ export class HocuspocusService implements OnModuleInit {
       await this.server.destroy();
       console.log('🛑 Hocuspocus server stopped');
     }
+  }
+
+  getServer() {
+    return this.server;
   }
 }
