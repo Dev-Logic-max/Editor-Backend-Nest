@@ -16,6 +16,7 @@ import Blockquote from '@tiptap/extension-blockquote';
 import CodeBlock from '@tiptap/extension-code-block';
 import HardBreak from '@tiptap/extension-hard-break';
 import Paragraph from '@tiptap/extension-paragraph';
+import Underline from '@tiptap/extension-underline';
 import ListItem from '@tiptap/extension-list-item';
 import Document from '@tiptap/extension-document';
 import Heading from '@tiptap/extension-heading';
@@ -55,6 +56,7 @@ export class HocuspocusService implements OnModuleInit {
       Bold,
       Italic,
       Strike,
+      Underline,
       Link,
       Code,
       CodeBlock,
